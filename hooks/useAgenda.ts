@@ -1,12 +1,12 @@
+"use client"
+
 import { useState, useEffect } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 
-// IMPORTANDO O NOSSO CÉREBRO
 import { useNiche } from "../app/contexts/NicheContext"
 
-// 🔹 FUNÇÕES DE MATEMÁTICA DE TEMPO 🔹
 const timeToMinutes = (time: string) => {
   const [h, m] = time.split(':').map(Number)
   return h * 60 + m
@@ -18,7 +18,6 @@ const minutesToTime = (mins: number) => {
   return `${h}:${m}`
 }
 
-// 🔹 CORREÇÃO DE FUSO HORÁRIO PARA O BRASIL 🔹
 const getLocalToday = () => {
   const d = new Date()
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
@@ -28,7 +27,6 @@ const getLocalToday = () => {
 export function useAgenda() {
   const router = useRouter()
   
-  // PUXANDO A INTELIGÊNCIA E O DESIGN SYSTEM
   const { config } = useNiche()
   const ServiceIcon = config.icons.service
   const t = config.theme 
@@ -41,7 +39,6 @@ export function useAgenda() {
   const today = getLocalToday()
   const [currentTime, setCurrentTime] = useState(new Date())
 
-  // Relógio
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000)
     return () => clearInterval(timer) 
@@ -55,14 +52,15 @@ export function useAgenda() {
   const [availableServices, setAvailableServices] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   
-  // ESTADOS DO FORMULÁRIO E UX
   const [isSheetOpen, setIsSheetOpen] = useState(false)
   const [clientName, setClientName] = useState("")
   const [service, setService] = useState("")
   const [selectedTime, setSelectedTime] = useState("")
   const [isSaving, setIsSaving] = useState(false)
 
-  // 1️⃣ Descobrir quem está logado
+  // 🔹 ESTADOS DO CHECKOUT QUE ESTAVAM FALTANDO
+  const [checkoutAppt, setCheckoutAppt] = useState<any>(null)
+
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -75,7 +73,6 @@ export function useAgenda() {
     getUser()
   }, [supabase, router])
 
-  // 2️⃣ Buscar Configurações, Serviços (Filtrados) e Agendamentos
   useEffect(() => {
     if (!userId) return
 
@@ -114,8 +111,6 @@ export function useAgenda() {
     fetchData()
   }, [selectedDate, userId, supabase])
 
-
-  // 🎓 GERADOR DE HORÁRIOS ELÁSTICO E DINÂMICO
   const generateTimeSlots = () => {
     if (!settings) return []
 
@@ -198,7 +193,7 @@ export function useAgenda() {
     if (error) {
       toast.error("Erro ao atualizar: " + error.message)
     } else {
-      toast.success(newStatus === 'Cancelado' ? "Marcação cancelada. Horário livre!" : "Atendimento finalizado com sucesso!")
+      toast.success(newStatus === 'Cancelado' ? "Marcação cancelada. Horário livre!" : "Atendimento atualizado!")
       
       const { data } = await supabase
         .from("appointments")
@@ -209,7 +204,38 @@ export function useAgenda() {
     }
   }
 
-  // 🔹 LÓGICA DE SOBREPOSIÇÃO E MÁQUINA DO TEMPO (BLOCKING) 🔹
+  // 🔹 FUNÇÃO DE CHECKOUT QUE ESTAVA FALTANDO
+  const handleCheckout = async (id: number, finalPrice: number, paymentMethod: string) => {
+    setIsSaving(true)
+
+    const { error } = await supabase
+      .from("appointments")
+      .update({ 
+        status: 'Finalizado',
+        total_price: finalPrice,
+        payment_status: 'PAGO',
+        payment_method: paymentMethod
+      })
+      .eq("id", id)
+      .eq("user_id", userId)
+
+    setIsSaving(false)
+
+    if (error) {
+      toast.error("Erro ao registrar pagamento: " + error.message)
+    } else {
+      toast.success("Atendimento finalizado e caixa atualizado! 💰")
+      setCheckoutAppt(null)
+      
+      const { data } = await supabase
+        .from("appointments")
+        .select("*")
+        .eq("date", selectedDate)
+        .eq("user_id", userId)
+      if (data) setAppointments(data)
+    }
+  }
+
   const selectedSvcObj = availableServices.find(s => s.title === service)
   const selectedDuration = selectedSvcObj ? selectedSvcObj.duration_minutes : 30
 
@@ -268,12 +294,14 @@ export function useAgenda() {
     state: {
       userId, isLoading, appointments, selectedDate, timeSlots, timelineBlocks,
       availableServices, isSheetOpen, clientName, service, selectedTime,
-      isSaving, config, ServiceIcon, t
+      isSaving, config, ServiceIcon, t,
+      checkoutAppt 
     },
     actions: {
       setSelectedDate, setIsSheetOpen, setClientName, setService,
       setSelectedTime, handleSaveAppointment, handleUpdateStatus,
-      resetForm, isSlotAvailable
+      resetForm, isSlotAvailable,
+      setCheckoutAppt, handleCheckout
     }
   }
 }

@@ -34,3 +34,192 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+```
+flowup-web
+├─ app
+│  ├─ agendar
+│  │  └─ [slug]
+│  │     └─ page.tsx
+│  ├─ auth
+│  │  └─ callback
+│  │     └─ route.ts
+│  ├─ contexts
+│  │  └─ NicheContext.tsx
+│  ├─ dashboard
+│  │  ├─ agenda
+│  │  │  └─ page.tsx
+│  │  ├─ configuracoes
+│  │  │  └─ page.tsx
+│  │  ├─ layout.tsx
+│  │  ├─ page.tsx
+│  │  ├─ portfolio
+│  │  │  └─ page.tsx
+│  │  └─ services
+│  │     └─ page.tsx
+│  ├─ favicon.ico
+│  ├─ globals.css
+│  ├─ layout.tsx
+│  ├─ login
+│  │  └─ page.tsx
+│  ├─ page.tsx
+│  └─ setup
+│     └─ page.tsx
+├─ components
+│  ├─ agenda
+│  │  ├─ AgendaHeader.tsx
+│  │  ├─ AgendaTimeline.tsx
+│  │  └─ NewAppointmentSheet.tsx
+│  ├─ agendamento
+│  │  ├─ BookingWizard.tsx
+│  │  ├─ CatalogSheet.tsx
+│  │  ├─ FloatingMenu.tsx
+│  │  └─ PortfolioSheet.tsx
+│  ├─ auth
+│  │  ├─ AuthForm.tsx
+│  │  └─ AuthHeader.tsx
+│  ├─ portfolio
+│  │  ├─ MobilePreview.tsx
+│  │  ├─ PortfolioGrid.tsx
+│  │  ├─ PortfolioHeader.tsx
+│  │  ├─ PortfolioUpload.tsx
+│  │  ├─ ProductList.tsx
+│  │  └─ ProductModal.tsx
+│  ├─ PremiumBackground.tsx
+│  ├─ services
+│  │  ├─ ServiceFormSheet.tsx
+│  │  ├─ ServicesHeader.tsx
+│  │  └─ ServicesList.tsx
+│  ├─ settings
+│  │  ├─ AppearanceSection.tsx
+│  │  ├─ BusinessSection.tsx
+│  │  └─ WhatsAppSection.tsx
+│  └─ ui
+│     ├─ button.tsx
+│     ├─ card.tsx
+│     ├─ input.tsx
+│     ├─ label.tsx
+│     ├─ sheet.tsx
+│     └─ sonner.tsx
+├─ components.json
+├─ Context.md
+├─ eslint.config.mjs
+├─ hooks
+│  ├─ useAgenda.ts
+│  ├─ useAgendamento.ts
+│  ├─ useAuth.ts
+│  ├─ usePortfolio.ts
+│  ├─ useProducts.ts
+│  ├─ useServices.ts
+│  └─ useSettings.ts
+├─ lib
+│  ├─ nicheConfig.ts
+│  └─ utils.ts
+├─ next.config.ts
+├─ package-lock.json
+├─ package.json
+├─ postcss.config.mjs
+├─ public
+│  ├─ file.svg
+│  ├─ globe.svg
+│  ├─ next.svg
+│  ├─ vercel.svg
+│  └─ window.svg
+├─ README.md
+└─ tsconfig.json
+
+```
+```
+flowup-web
+├─ app
+│  ├─ agendar
+│  │  └─ [slug]
+│  │     └─ page.tsx
+│  ├─ auth
+│  │  └─ callback
+│  │     └─ route.ts
+│  ├─ contexts
+│  │  └─ NicheContext.tsx
+│  ├─ dashboard
+│  │  ├─ agenda
+│  │  │  └─ page.tsx
+│  │  ├─ configuracoes
+│  │  │  └─ page.tsx
+│  │  ├─ layout.tsx
+│  │  ├─ page.tsx
+│  │  ├─ portfolio
+│  │  │  └─ page.tsx
+│  │  └─ services
+│  │     └─ page.tsx
+│  ├─ favicon.ico
+│  ├─ globals.css
+│  ├─ layout.tsx
+│  ├─ login
+│  │  └─ page.tsx
+│  ├─ page.tsx
+│  └─ setup
+│     └─ page.tsx
+├─ components
+│  ├─ agenda
+│  │  ├─ AgendaHeader.tsx
+│  │  ├─ AgendaTimeline.tsx
+│  │  └─ NewAppointmentSheet.tsx
+│  ├─ agendamento
+│  │  ├─ BookingWizard.tsx
+│  │  ├─ CatalogSheet.tsx
+│  │  ├─ FloatingMenu.tsx
+│  │  └─ PortfolioSheet.tsx
+│  ├─ auth
+│  │  ├─ AuthForm.tsx
+│  │  └─ AuthHeader.tsx
+│  ├─ portfolio
+│  │  ├─ MobilePreview.tsx
+│  │  ├─ PortfolioGrid.tsx
+│  │  ├─ PortfolioHeader.tsx
+│  │  ├─ PortfolioUpload.tsx
+│  │  ├─ ProductList.tsx
+│  │  └─ ProductModal.tsx
+│  ├─ PremiumBackground.tsx
+│  ├─ services
+│  │  ├─ ServiceFormSheet.tsx
+│  │  ├─ ServicesHeader.tsx
+│  │  └─ ServicesList.tsx
+│  ├─ settings
+│  │  ├─ AppearanceSection.tsx
+│  │  ├─ BusinessSection.tsx
+│  │  └─ WhatsAppSection.tsx
+│  └─ ui
+│     ├─ button.tsx
+│     ├─ card.tsx
+│     ├─ input.tsx
+│     ├─ label.tsx
+│     ├─ sheet.tsx
+│     └─ sonner.tsx
+├─ components.json
+├─ Context.md
+├─ eslint.config.mjs
+├─ hooks
+│  ├─ useAgenda.ts
+│  ├─ useAgendamento.ts
+│  ├─ useAuth.ts
+│  ├─ usePortfolio.ts
+│  ├─ useProducts.ts
+│  ├─ useServices.ts
+│  └─ useSettings.ts
+├─ lib
+│  ├─ nicheConfig.ts
+│  └─ utils.ts
+├─ next.config.ts
+├─ package-lock.json
+├─ package.json
+├─ postcss.config.mjs
+├─ public
+│  ├─ file.svg
+│  ├─ globe.svg
+│  ├─ next.svg
+│  ├─ vercel.svg
+│  └─ window.svg
+├─ README.md
+└─ tsconfig.json
+
+```
