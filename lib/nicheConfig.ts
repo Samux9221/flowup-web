@@ -13,7 +13,9 @@ export interface NicheTheme {
   primaryHover: string;   
   secondaryBg: string;    
   textHighlight: string;  
-  radius: string;         
+  radius: string; 
+  bgPrimary: string;
+  textOnPrimary: string;        
 }
 
 export interface NicheExamples {
@@ -28,7 +30,7 @@ export interface NicheConfig {
   features: NicheFeatures
   theme: NicheTheme
   examples: NicheExamples
-  categories: string[] // 🆕 AQUI ESTÁ A PROPRIEDADE QUE FALTAVA PARA PARAR O ERRO
+  categories: string[]
   icons: {
     primary: any
     service: any
@@ -50,13 +52,15 @@ export const nicheDictionary: Record<NicheType, NicheConfig> = {
       primaryHover: "hover:bg-zinc-800",
       secondaryBg: "bg-zinc-100",
       textHighlight: "text-zinc-900",
-      radius: "rounded-md", 
+      radius: "rounded-xl", 
+      bgPrimary: "bg-zinc-900 hover:bg-zinc-800",
+      textOnPrimary: "text-white",
     },
     examples: {
       service: "Ex: Corte Degradê",
       product: "Ex: Pomada Modeladora",
     },
-    categories: ["Cortes", "Barba", "Química", "Pigmentação", "Geral"], // 🆕 Categorias inseridas
+    categories: ["Cortes", "Barba", "Química", "Pigmentação", "Geral"],
     icons: {
       primary: Scissors,
       service: Scissors,
@@ -72,17 +76,19 @@ export const nicheDictionary: Record<NicheType, NicheConfig> = {
       hasQuickProducts: true,
     },
     theme: {
-      primaryBg: "bg-rose-400", 
-      primaryHover: "hover:bg-rose-500",
+      primaryBg: "bg-rose-500", 
+      primaryHover: "hover:bg-rose-600",
       secondaryBg: "bg-rose-50",
       textHighlight: "text-rose-500",
-      radius: "rounded-xl", 
+      radius: "rounded-2xl", 
+      bgPrimary: "bg-rose-500 hover:bg-rose-600",
+      textOnPrimary: "text-white",
     },
     examples: {
       service: "Ex: Mechas / Balaiagem",
       product: "Ex: Máscara de Hidratação",
     },
-    categories: ["Cabelo", "Coloração", "Tratamento", "Penteado", "Geral"], // 🆕 Categorias inseridas
+    categories: ["Cabelo", "Coloração", "Tratamento", "Penteado", "Geral"],
     icons: {
       primary: Sparkles,
       service: Droplets,
@@ -98,17 +104,19 @@ export const nicheDictionary: Record<NicheType, NicheConfig> = {
       hasQuickProducts: false,
     },
     theme: {
-      primaryBg: "bg-pink-400", 
-      primaryHover: "hover:bg-pink-500",
+      primaryBg: "bg-pink-500", 
+      primaryHover: "hover:bg-pink-600",
       secondaryBg: "bg-pink-50",
       textHighlight: "text-pink-500",
       radius: "rounded-2xl", 
+      bgPrimary: "bg-pink-500 hover:bg-pink-600",
+      textOnPrimary: "text-white",
     },
     examples: {
       service: "Ex: Alongamento em Gel",
       product: "Ex: Óleo de Cutículas", 
     },
-    categories: ["Pé & Mão", "Alongamento", "Esmaltação", "Nail Art", "Geral"], // 🆕 Categorias inseridas
+    categories: ["Pé & Mão", "Alongamento", "Esmaltação", "Nail Art", "Geral"],
     icons: {
       primary: Paintbrush,
       service: Paintbrush,
@@ -124,17 +132,19 @@ export const nicheDictionary: Record<NicheType, NicheConfig> = {
       hasQuickProducts: false,
     },
     theme: {
-      primaryBg: "bg-blue-500",
-      primaryHover: "hover:bg-blue-600",
+      primaryBg: "bg-blue-600",
+      primaryHover: "hover:bg-blue-700",
       secondaryBg: "bg-slate-50",
-      textHighlight: "text-blue-500",
-      radius: "rounded-lg",
+      textHighlight: "text-blue-600",
+      radius: "rounded-xl",
+      bgPrimary: "bg-blue-600 hover:bg-blue-700",
+      textOnPrimary: "text-white",
     },
     examples: {
       service: "Ex: Consultoria",
       product: "Ex: Produto Físico",
     },
-    categories: ["Serviços", "Vendas", "Outros", "Geral"], // 🆕 Categorias inseridas
+    categories: ["Serviços", "Vendas", "Outros", "Geral"],
     icons: {
       primary: Sparkles,
       service: Sparkles,

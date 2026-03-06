@@ -1,6 +1,6 @@
 "use client"
 
-import { User, Loader2 } from "lucide-react"
+import { User, Loader2, Users } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -9,8 +9,16 @@ import {
 } from "@/components/ui/sheet"
 
 export default function NewAppointmentSheet({ state, actions }: { state: any, actions: any }) {
-  const { isSheetOpen, selectedDate, clientName, service, availableServices, selectedTime, timeSlots, isSaving, config, ServiceIcon, t } = state
-  const { setIsSheetOpen, setClientName, setService, setSelectedTime, handleSaveAppointment, isSlotAvailable } = actions
+  const { 
+    isSheetOpen, selectedDate, clientName, service, availableServices, 
+    selectedTime, timeSlots, isSaving, config, ServiceIcon, t,
+    professionals, selectedProfessional // 🔹 Puxando do Hook
+  } = state
+  
+  const { 
+    setIsSheetOpen, setClientName, setService, setSelectedTime, 
+    handleSaveAppointment, isSlotAvailable, setSelectedProfessional // 🔹 Puxando do Hook
+  } = actions
 
   return (
     <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
@@ -22,6 +30,8 @@ export default function NewAppointmentSheet({ state, actions }: { state: any, ac
           </SheetHeader>
           
           <div className="flex-1 overflow-y-auto py-8 space-y-8 pr-2">
+            
+            {/* 1. Nome do Cliente */}
             <div className="space-y-3">
               <label className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Nome do(a) {config.clientName}</label>
               <div className="relative">
@@ -36,6 +46,43 @@ export default function NewAppointmentSheet({ state, actions }: { state: any, ac
               </div>
             </div>
 
+            {/* 🔹 2. NOVA SECÇÃO: Seleção do Profissional 🔹 */}
+            {professionals && professionals.length > 0 && (
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  <Users className="w-4 h-4 text-zinc-500" /> Profissional
+                </label>
+                <div className="flex overflow-x-auto gap-3 pb-2 snap-x">
+                  {professionals.map((prof: any) => (
+                    <button
+                      key={prof.id}
+                      type="button"
+                      onClick={() => setSelectedProfessional(prof.id)}
+                      className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all snap-start min-w-[160px] ${
+                        selectedProfessional === prof.id 
+                          ? `border-${t.primaryBg.split('-')[1]}-500 bg-${t.primaryBg.split('-')[1]}-50 ring-1 ring-${t.primaryBg.split('-')[1]}-500/20` 
+                          : 'border-zinc-200 bg-white hover:border-zinc-300 dark:bg-zinc-900 dark:border-white/10'
+                      }`}
+                    >
+                      <div className="h-8 w-8 rounded-full bg-zinc-200 overflow-hidden shrink-0">
+                        {prof.avatar_url ? (
+                          <img src={prof.avatar_url} alt={prof.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className={`w-full h-full flex items-center justify-center font-bold text-xs text-zinc-500`}>
+                            {prof.name.charAt(0)}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-left flex-1 min-w-0">
+                        <p className={`font-semibold text-xs truncate ${selectedProfessional === prof.id ? t.textHighlight : 'text-zinc-900 dark:text-white'}`}>{prof.name}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 3. Serviço */}
             <div className="space-y-3">
               <label className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Serviço</label>
               <div className="relative">
@@ -55,11 +102,12 @@ export default function NewAppointmentSheet({ state, actions }: { state: any, ac
               </div>
             </div>
 
+            {/* 4. Horários */}
             <div className="space-y-3">
               <label className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Horário Disponível</label>
               {service === "" ? (
                 <p className={`text-sm text-zinc-500 italic ${t.radius} bg-zinc-50 p-3 border border-zinc-200/50 dark:bg-zinc-900 dark:border-white/5`}>
-                  Selecione primeiro um serviço para ver e confirmar o horário da sua agenda.
+                  Selecione primeiro um serviço para ver e confirmar o horário.
                 </p>
               ) : (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
@@ -74,10 +122,10 @@ export default function NewAppointmentSheet({ state, actions }: { state: any, ac
                         onClick={() => setSelectedTime(hour)}
                         className={`flex items-center justify-center ${t.radius} py-2.5 text-sm font-medium transition-all ${
                           !isAvailable && selectedTime !== hour
-                            ? "bg-zinc-100 text-zinc-400 border border-zinc-200/50 cursor-not-allowed dark:bg-zinc-800/50 dark:text-zinc-600 dark:border-zinc-800 opacity-50" 
+                            ? "bg-zinc-100 text-zinc-400 border border-zinc-200/50 cursor-not-allowed opacity-50" 
                             : selectedTime === hour 
                               ? `${t.primaryBg} text-white shadow-md scale-105` 
-                              : "bg-white text-zinc-600 border border-zinc-200/80 hover:border-zinc-900 hover:text-zinc-900 dark:bg-zinc-900/50 dark:border-white/10 dark:text-zinc-300 dark:hover:border-white/30"
+                              : "bg-white text-zinc-600 border border-zinc-200/80 hover:border-zinc-900"
                         }`}
                       >
                         {hour}
