@@ -1,5 +1,8 @@
 "use client"
 
+import { useCashClosing } from "@/hooks/useCashClosing"
+import CashClosingWizard from "./CashClosingWizard"
+import { ShieldCheck } from "lucide-react" 
 import { useEffect, useState } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 import { DollarSign, Users, Calendar as CalendarIcon, Clock, ArrowRight, AlertCircle, MessageCircle, CreditCard, QrCode, Banknote } from "lucide-react"
@@ -14,6 +17,9 @@ export default function DashboardPage() {
   const { config } = useNiche()
   const PrimaryIcon = config.icons.primary
   const t = config.theme 
+
+  // 🔹 CONTROLADOR DO FECHAMENTO DE CAIXA
+  const cashClosingController = useCashClosing()
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -162,13 +168,24 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* 🔹 NOVO BOTÃO DE ACESSO AO FINANCEIRO 🔹 */}
-        <Link 
-          href="/dashboard/financas" 
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all hover:opacity-90 active:scale-95 ${t.bgPrimary} ${t.textOnPrimary}`}
-        >
-          Acessar Financeiro
-        </Link>
+        <div className="flex flex-col sm:flex-row gap-3">
+          {/* BOTÃO MÁGICO DO CAIXA */}
+          <button 
+            onClick={() => cashClosingController.actions.setIsOpen(true)}
+            className={`group flex items-center justify-center gap-2 ${t.radius} border border-zinc-200 bg-white px-5 py-2.5 text-sm font-medium text-zinc-900 shadow-sm transition-all hover:border-zinc-300 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800/80 active:scale-95`}
+          >
+            <ShieldCheck className={`h-4 w-4 ${t.textHighlight} transition-transform group-hover:scale-110`} />
+            Bater Caixa
+          </button>
+
+          {/* 🔹 NOVO BOTÃO DE ACESSO AO FINANCEIRO 🔹 */}
+          <Link 
+            href="/dashboard/financas" 
+            className={`flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold shadow-sm transition-all hover:opacity-90 active:scale-95 ${t.bgPrimary} ${t.textOnPrimary}`}
+          >
+            Acessar Financeiro
+          </Link>
+        </div>
       </header>
 
       {/* CARDS DE MÉTRICAS BÁSICAS */}
@@ -368,6 +385,10 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* RENDERIZAR O WIZARD DE FECHAMENTO AQUI */}
+      <CashClosingWizard state={cashClosingController.state} actions={cashClosingController.actions} />
+
     </div>
   )
 }
