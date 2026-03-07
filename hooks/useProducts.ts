@@ -1,15 +1,7 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { createBrowserClient } from "@supabase/ssr"
-
-export type Product = {
-  id: string
-  name: string
-  price: number
-  stock: number
-  image_url: string
-}
 
 export function useProducts(userId: string | null) {
   const supabase = createBrowserClient(
@@ -17,31 +9,38 @@ export function useProducts(userId: string | null) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
-  const [products, setProducts] = useState<Product[]>([])
+  const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!userId) return
+    if (!userId) {
+      setLoading(false)
+      return
+    }
 
-    async function fetchProducts() {
+    const fetchProducts = async () => {
       setLoading(true)
-
-      const { data } = await supabase
+      
+      // Busca limpa: pega todos os produtos do usuário, sem filtros inventados
+      const { data, error } = await supabase
         .from("products")
         .select("*")
         .eq("user_id", userId)
-        .order("created_at", { ascending: false })
+        .order("name", { ascending: true })
 
-      setProducts(data || [])
+      if (error) {
+        console.error("🔴 Erro ao buscar produtos no Supabase:", error.message)
+        setProducts([])
+      } else if (data) {
+        console.log("🟢 Produtos encontrados:", data) // Vai aparecer no console do seu navegador!
+        setProducts(data)
+      }
+
       setLoading(false)
     }
 
     fetchProducts()
-  }, [userId])
+  }, [userId, supabase])
 
-  return {
-    products,
-    loading,
-    setProducts
-  }
+  return { products, loading }
 }

@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
-
 import { useNiche } from "../app/contexts/NicheContext"
 
 const timeToMinutes = (time: string) => {
@@ -50,8 +49,8 @@ export function useAgenda() {
   const [selectedDate, setSelectedDate] = useState(today)
   const [appointments, setAppointments] = useState<any[]>([])
   const [availableServices, setAvailableServices] = useState<any[]>([])
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]) // 🔹 PRODUTOS AQUI
   
-  // 🔹 Profissionais e o Estado Selecionado
   const [professionals, setProfessionals] = useState<any[]>([])
   const [selectedProfessional, setSelectedProfessional] = useState<string>("")
   
@@ -81,20 +80,17 @@ export function useAgenda() {
       const { data: configData } = await supabase.from("business_settings").select("*").eq("user_id", userId).single()
       if (configData) setSettings(configData)
 
+      // 🔹 A MÁGICA DA SEPARAÇÃO ACONTECE AQUI
       const { data: servicesData } = await supabase.from("services").select("*").eq("user_id", userId).order("title")
       if (servicesData) {
         setAvailableServices(servicesData.filter((s: any) => s.type !== 'product'))
+        setAvailableProducts(servicesData.filter((s: any) => s.type === 'product'))
       }
 
       const { data: apptData } = await supabase.from("appointments").select("*").eq("date", selectedDate).eq("user_id", userId)
       if (apptData) setAppointments(apptData)
 
-      // Busca Equipe e Regras
-      const { data: profsData } = await supabase
-        .from("professionals")
-        .select('*, commission_rules(*)')
-        .eq("user_id", userId)
-        .eq("is_active", true)
+      const { data: profsData } = await supabase.from("professionals").select('*, commission_rules(*)').eq("user_id", userId).eq("is_active", true)
       if (profsData) setProfessionals(profsData)
 
       setIsLoading(false)
@@ -129,12 +125,8 @@ export function useAgenda() {
 
   const timeSlots = generateTimeSlots()
 
-  // 🔹 Limpa o profissional ao fechar o modal
   const resetForm = () => { 
-    setClientName(""); 
-    setService(""); 
-    setSelectedTime(""); 
-    setSelectedProfessional(""); 
+    setClientName(""); setService(""); setSelectedTime(""); setSelectedProfessional(""); 
   }
 
   const handleSaveAppointment = async () => {
@@ -142,14 +134,9 @@ export function useAgenda() {
     if (!userId) return
     setIsSaving(true)
 
-    // 🔹 Envia o profissional selecionado para o banco
     const { error } = await supabase.from("appointments").insert([{
-      user_id: userId, 
-      client_name: clientName, 
-      service: service,
-      date: selectedDate, 
-      time: selectedTime, 
-      status: "Confirmado",
+      user_id: userId, client_name: clientName, service: service,
+      date: selectedDate, time: selectedTime, status: "Confirmado",
       professional_id: selectedProfessional || null
     }])
     
@@ -175,12 +162,11 @@ export function useAgenda() {
     }
   }
 
-  // O CHECKOUT INTELIGENTE (CÁLCULO SEPARADO BLINDADO)
   const handleCheckout = async (id: number, servicePrice: number, productsPrice: number, paymentMethod: string, professionalId: string | null) => {
     setIsSaving(true)
 
     const finalPrice = servicePrice + productsPrice
-    const TAXA_CARTAO_PERCENT = 0.05 // 5% de taxa fixa para o MVP
+    const TAXA_CARTAO_PERCENT = 0.05 
     const feeAmount = paymentMethod === 'CARTAO' ? (finalPrice * TAXA_CARTAO_PERCENT) : 0
     const liquidTotal = finalPrice - feeAmount
 
@@ -194,38 +180,20 @@ export function useAgenda() {
       const serviceRule = prof?.commission_rules?.find((r: any) => r.item_type === 'SERVICE')
       const productRule = prof?.commission_rules?.find((r: any) => r.item_type === 'PRODUCT')
 
-      // Calcula comissão do SERVIÇO
       if (serviceRule && servicePrice > 0) {
-        const baseService = (serviceRule.discount_fees_first && paymentMethod === 'CARTAO') 
-          ? servicePrice * (1 - TAXA_CARTAO_PERCENT) 
-          : servicePrice
-        
-        commissionAmount += serviceRule.commission_type === 'PERCENTAGE' 
-          ? baseService * (serviceRule.commission_value / 100) 
-          : serviceRule.commission_value
+        const baseService = (serviceRule.discount_fees_first && paymentMethod === 'CARTAO') ? servicePrice * (1 - TAXA_CARTAO_PERCENT) : servicePrice
+        commissionAmount += serviceRule.commission_type === 'PERCENTAGE' ? baseService * (serviceRule.commission_value / 100) : serviceRule.commission_value
       }
 
-      // Calcula comissão do PRODUTO
       if (productRule && productsPrice > 0) {
-        const baseProduct = (productRule.discount_fees_first && paymentMethod === 'CARTAO') 
-          ? productsPrice * (1 - TAXA_CARTAO_PERCENT) 
-          : productsPrice
-        
+        const baseProduct = (productRule.discount_fees_first && paymentMethod === 'CARTAO') ? productsPrice * (1 - TAXA_CARTAO_PERCENT) : productsPrice
         commissionAmount += baseProduct * (productRule.commission_value / 100)
       }
     }
 
-    const { error: apptError } = await supabase
-      .from("appointments")
-      .update({ 
-        status: 'Finalizado',
-        total_price: finalPrice,
-        payment_status: 'PAGO',
-        payment_method: paymentMethod,
-        professional_id: professionalId || null
-      })
-      .eq("id", id)
-      .eq("user_id", userId)
+    const { error: apptError } = await supabase.from("appointments").update({ 
+      status: 'Finalizado', total_price: finalPrice, payment_status: 'PAGO', payment_method: paymentMethod, professional_id: professionalId || null
+    }).eq("id", id).eq("user_id", userId)
 
     if (apptError) {
       toast.error("Erro ao finalizar na agenda.")
@@ -235,28 +203,20 @@ export function useAgenda() {
 
     const descriptionText = checkoutAppt ? `Atendimento: ${checkoutAppt.client_name}` : "Atendimento"
     await supabase.from("transactions").insert([{
-      user_id: userId,
-      appointment_id: id,
-      type: 'INCOME',
-      amount: liquidTotal,
-      description: profName ? `${descriptionText} - Por ${profName}` : descriptionText,
-      payment_method: paymentMethod,
-      status: 'PAGO',
-      date: selectedDate
+      user_id: userId, appointment_id: id, type: 'INCOME', amount: liquidTotal,
+      description: profName ? `${descriptionText} - ${profName}` : descriptionText,
+      payment_method: paymentMethod, status: 'PAGO', date: selectedDate
     }])
 
     if (professionalId && commissionAmount > 0) {
       await supabase.from("commission_ledger").insert([{
-        professional_id: professionalId,
-        appointment_id: id,
-        type: 'CREDIT',
-        amount: commissionAmount,
+        professional_id: professionalId, appointment_id: id, type: 'CREDIT', amount: commissionAmount,
         description: `Comissão: ${checkoutAppt?.service || 'Serviço'} + Vendas`
       }])
     }
 
     setIsSaving(false)
-    toast.success("Cálculos exatos efetuados e caixa atualizado! 💎")
+    toast.success("Cálculos efetuados e caixa atualizado! 💎")
     setCheckoutAppt(null)
     
     const { data } = await supabase.from("appointments").select("*").eq("date", selectedDate).eq("user_id", userId)
@@ -275,6 +235,8 @@ export function useAgenda() {
     }
     return !appointments.some(appt => {
       if (appt.status === 'Cancelado') return false
+      if (selectedProfessional && appt.professional_id && appt.professional_id !== selectedProfessional) return false
+      
       const apptSvc = availableServices.find(s => s.title === appt.service)
       const apptDuration = apptSvc ? apptSvc.duration_minutes : 30
       const existingStart = timeToMinutes(appt.time)
@@ -284,17 +246,19 @@ export function useAgenda() {
   }
 
   const renderTimelineBlocks = () => {
-    const blocks: { type: string; hour: string; appointment?: any; duration?: number }[] = []
+    const blocks: { type: string; hour: string; appointment?: any; duration?: number; professional?: any }[] = []
     let skipUntil = 0
     timeSlots.forEach(hour => {
       const currentMins = timeToMinutes(hour)
       if (currentMins < skipUntil) return
       const appointment = appointments.find(a => a.time === hour && a.status !== 'Cancelado')
+      
       if (appointment) {
         const svc = availableServices.find(s => s.title === appointment.service)
         const duration = svc ? svc.duration_minutes : 30
+        const prof = professionals.find(p => p.id === appointment.professional_id)
         skipUntil = currentMins + duration
-        blocks.push({ type: 'appointment', hour, appointment, duration })
+        blocks.push({ type: 'appointment', hour, appointment, duration, professional: prof })
       } else {
         blocks.push({ type: 'free', hour })
       }
@@ -306,19 +270,14 @@ export function useAgenda() {
 
   return {
     state: {
-      userId, isLoading, appointments, selectedDate, timeSlots, timelineBlocks,
-      availableServices, professionals, 
-      selectedProfessional, // 🔹 EXPORTADO AQUI
-      isSheetOpen, clientName, service, selectedTime,
-      isSaving, config, ServiceIcon, t,
-      checkoutAppt 
+      userId, isLoading, appointments, selectedDate, timeSlots, timelineBlocks, 
+      availableServices, availableProducts, professionals, // 🔹 PRODUTOS EXPORTADOS AQUI
+      selectedProfessional, isSheetOpen, clientName, service, selectedTime, 
+      isSaving, config, ServiceIcon, t, checkoutAppt 
     },
     actions: {
-      setSelectedDate, setIsSheetOpen, setClientName, setService,
-      setSelectedTime, handleSaveAppointment, handleUpdateStatus,
-      resetForm, isSlotAvailable,
-      setSelectedProfessional, // 🔹 EXPORTADO AQUI (A correção do erro)
-      setCheckoutAppt, handleCheckout
+      setSelectedDate, setIsSheetOpen, setClientName, setService, setSelectedTime, handleSaveAppointment, handleUpdateStatus,
+      resetForm, isSlotAvailable, setSelectedProfessional, setCheckoutAppt, handleCheckout
     }
   }
 }

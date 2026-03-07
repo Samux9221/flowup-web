@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 const getLocalToday = () => {
   const d = new Date()
@@ -11,105 +12,131 @@ const getLocalToday = () => {
 }
 
 export function useCashClosing() {
+  const router = useRouter()
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
   const [isOpen, setIsOpen] = useState(false)
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState(1) 
   const [isLoading, setIsLoading] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   
-  // Vendas do dia calculadas pelo sistema
-  const [totals, setTotals] = useState({
-    dinheiro: 0,
-    pix: 0,
-    cartao: 0,
-    taxasEstimadas: 0,
-    totalLiquido: 0
-  })
+  const [pendingAppointments, setPendingAppointments] = useState<any[]>([])
+  const [totals, setTotals] = useState({ dinheiro: 0, pix: 0, cartao: 0, taxasEstimadas: 0, totalLiquido: 0 })
+  const [closureData, setClosureData] = useState<any>(null)
 
-  // NOVO: Saldo Inicial (O que já tinha antes de abrir o salão) para os 3 métodos
-  const [saldoInicial, setSaldoInicial] = useState({
-    dinheiro: "",
-    pix: "",
-    cartao: ""
-  })
+  const [expenses, setExpenses] = useState<{ id: string, description: string, amount: number }[]>([])
+  const [saldoInicial, setSaldoInicial] = useState("")
+  const [countedCash, setCountedCash] = useState("")
 
-  // O que o dono contou na vida real no fim do dia (Saldo Final Total)
-  const [counted, setCounted] = useState({
-    dinheiro: "",
-    pix: "",
-    cartao: ""
-  })
+  const fetchTodayData = useCallback(async () => {
+    setIsLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
 
-  useEffect(() => {
-    if (!isOpen) return
+    const today = getLocalToday()
 
-    const fetchTodayCash = async () => {
-      setIsLoading(true)
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
-      const today = getLocalToday()
-
-      const { data: appointments } = await supabase
-        .from("appointments")
-        .select("total_price, payment_method")
-        .eq("user_id", user.id)
-        .eq("date", today)
-        .eq("status", "Finalizado")
-        .eq("payment_status", "PAGO")
-
-      if (appointments) {
-        let dinheiro = 0, pix = 0, cartao = 0
-
-        appointments.forEach(appt => {
-          const valor = Number(appt.total_price) || 0
-          if (appt.payment_method === 'DINHEIRO') dinheiro += valor
-          if (appt.payment_method === 'PIX') pix += valor
-          if (appt.payment_method === 'CARTAO') cartao += valor
-        })
-
-        const taxasEstimadas = cartao * 0.02 // 2% taxa média
-        const totalLiquido = dinheiro + pix + (cartao - taxasEstimadas)
-
-        setTotals({ dinheiro, pix, cartao, taxasEstimadas, totalLiquido })
-        
-        // Zera tudo ao abrir
-        setSaldoInicial({ dinheiro: "", pix: "", cartao: "" })
-        setCounted({ dinheiro: "", pix: "", cartao: "" })
-      }
-      
+    const { data: existingClosure } = await supabase.from("daily_closures").select("*").eq("user_id", user.id).eq("date", today).maybeSingle()
+    if (existingClosure) {
+      setClosureData(existingClosure)
+      setStep(4) 
       setIsLoading(false)
+      return
     }
 
-    fetchTodayCash()
-  }, [isOpen, supabase])
+    const { data: allAppointments } = await supabase.from("appointments").select("*").eq("user_id", user.id).eq("date", today).neq("status", "Cancelado")
 
-  const handleCountChange = (field: keyof typeof counted, value: string) => {
-    setCounted(prev => ({ ...prev, [field]: value }))
-  }
+    if (allAppointments) {
+      // Tipagem explícita adicionada aqui (a: any)
+      const pendentes = allAppointments.filter((a: any) => a.status === "Confirmado" || a.status === "Em Andamento")
+      setPendingAppointments(pendentes)
 
-  const handleSaldoInicialChange = (field: keyof typeof saldoInicial, value: string) => {
-    setSaldoInicial(prev => ({ ...prev, [field]: value }))
-  }
+      const finalizados = allAppointments.filter((a: any) => a.status === "Finalizado" && a.payment_status === "PAGO")
+      let dinheiro = 0, pix = 0, cartao = 0
+      
+      // Tipagem explícita adicionada aqui (appt: any)
+      finalizados.forEach((appt: any) => {
+        const valor = Number(appt.total_price) || 0
+        if (appt.payment_method === 'DINHEIRO') dinheiro += valor
+        if (appt.payment_method === 'PIX') pix += valor
+        if (appt.payment_method === 'CARTAO') cartao += valor
+      })
+
+      const taxasEstimadas = cartao * 0.05
+      setTotals({ dinheiro, pix, cartao, taxasEstimadas, totalLiquido: dinheiro + pix + (cartao - taxasEstimadas) })
+    }
+    setIsLoading(false)
+  }, [supabase])
+
+  useEffect(() => {
+    if (isOpen) fetchTodayData()
+  }, [isOpen, fetchTodayData])
 
   const nextStep = () => setStep(s => Math.min(s + 1, 4))
   const prevStep = () => setStep(s => Math.max(s - 1, 1))
+  const closeWizard = () => { setIsOpen(false); setTimeout(() => setStep(1), 300) }
+
+  const addExpense = (description: string, amount: number) => {
+    if (!description || !amount) return
+    setExpenses(prev => [...prev, { id: Math.random().toString(), description, amount }])
+  }
   
-  const closeWizard = () => {
-    setIsOpen(false)
-    setTimeout(() => setStep(1), 300)
+  // Tipagem explícita adicionada aqui (e: any)
+  const removeExpense = (id: string) => setExpenses(prev => prev.filter((e: any) => e.id !== id))
+  const totalExpenses = expenses.reduce((acc, curr) => acc + curr.amount, 0)
+
+  const handleMarkAsNoShow = async (id: number) => {
+    await supabase.from("appointments").update({ status: 'Cancelado' }).eq("id", id)
+    toast.success("Marcado como 'Faltou'.")
+    fetchTodayData() 
   }
 
   const handleFinishClosing = async () => {
-    toast.success("Caixa fechado e auditado com sucesso! 🔒")
-    closeWizard()
+    setIsSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const today = getLocalToday()
+    const valInicial = parseFloat(saldoInicial || '0')
+    const valContado = parseFloat(countedCash || '0')
+
+    const expectedDinheiro = (valInicial + totals.dinheiro) - totalExpenses
+    const diferencaGaveta = valContado - expectedDinheiro
+
+    const payload = {
+      user_id: user.id,
+      date: today,
+      expected_dinheiro: expectedDinheiro,
+      expected_pix: totals.pix,
+      expected_cartao: totals.cartao - totals.taxasEstimadas,
+      expected_total: totals.totalLiquido - totalExpenses, 
+      actual_dinheiro: valContado,
+      actual_pix: totals.pix, 
+      actual_cartao: totals.cartao - totals.taxasEstimadas,
+      difference: diferencaGaveta,
+    }
+
+    for (const exp of expenses) {
+      await supabase.from("transactions").insert([{
+        user_id: user.id, type: 'EXPENSE', amount: exp.amount, description: exp.description, payment_method: 'DINHEIRO', status: 'PAGO', date: today
+      }])
+    }
+
+    const { data, error } = await supabase.from("daily_closures").insert([payload]).select().single()
+
+    if (error) toast.error("Erro ao registrar fechamento.")
+    else {
+      toast.success("Caixa trancado com sucesso! 🔒")
+      setClosureData(data)
+      setStep(4)
+    }
+    setIsSaving(false)
   }
 
   return {
-    state: { isOpen, step, totals, counted, saldoInicial, isLoading },
-    actions: { setIsOpen, nextStep, prevStep, closeWizard, handleFinishClosing, handleCountChange, handleSaldoInicialChange }
+    state: { isOpen, step, totals, pendingAppointments, expenses, totalExpenses, saldoInicial, countedCash, isLoading, isSaving, closureData },
+    actions: { setIsOpen, nextStep, prevStep, closeWizard, handleFinishClosing, addExpense, removeExpense, setSaldoInicial, setCountedCash, handleMarkAsNoShow }
   }
 }

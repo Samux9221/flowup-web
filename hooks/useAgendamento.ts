@@ -1,3 +1,5 @@
+"use client"
+
 import { useState, useEffect } from "react"
 import { createBrowserClient } from "@supabase/ssr"
 import { toast } from "sonner"
@@ -52,13 +54,14 @@ export function useAgendamento(slug: string) {
   const today = getLocalToday()
 
   // 🔹 ESTADOS DO FLUXO E DADOS 🔹
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState(1) // Expandimos para suportar o passo de Profissional
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [notFound, setNotFound] = useState(false)
   
   const [settings, setSettings] = useState<any>(null)
   const [services, setServices] = useState<any[]>([])
+  const [professionals, setProfessionals] = useState<any[]>([]) // 🔹 NOVO
   const [appointments, setAppointments] = useState<any[]>([])
 
   // 🔹 ESTADOS: PORTFÓLIO E CATÁLOGO 🔹
@@ -70,6 +73,7 @@ export function useAgendamento(slug: string) {
 
   // 🔹 ESCOLHAS DO CLIENTE 🔹
   const [selectedService, setSelectedService] = useState<any>(null)
+  const [selectedProfessional, setSelectedProfessional] = useState<any>(null) // 🔹 NOVO
   const [selectedDate, setSelectedDate] = useState(today)
   const [selectedTime, setSelectedTime] = useState("")
   const [clientName, setClientName] = useState("")
@@ -83,7 +87,7 @@ export function useAgendamento(slug: string) {
     return () => clearInterval(timer)
   }, [])
 
-  // Buscar Dados Iniciais
+  // Buscar Dados Iniciais da Barbearia
   useEffect(() => {
     const fetchInitialData = async () => {
       if (!slug) return
@@ -102,32 +106,39 @@ export function useAgendamento(slug: string) {
 
       setSettings(configData)
 
+      // 1. Buscar Serviços
       const { data: servicesData } = await supabase
         .from("services")
         .select("*")
         .eq("user_id", configData.user_id)
         .order("title")
-        
       if (servicesData) setServices(servicesData)
 
+      // 2. Buscar Profissionais 🔹 NOVO
+      const { data: profsData } = await supabase
+        .from("professionals")
+        .select("*")
+        .eq("user_id", configData.user_id)
+      if (profsData) setProfessionals(profsData)
+
+      // 3. Buscar Portfólio
       const { data: photosData } = await supabase
         .from("portfolio")
         .select("*")
         .eq("user_id", configData.user_id)
         .order("created_at", { ascending: false })
-      
       if (photosData) {
         setPhotos(photosData)
         const cats = Array.from(new Set(photosData.map((p: any) => p.category)))
         setPhotoCategories(['Todos', ...cats])
       }
 
+      // 4. Buscar Produtos
       const { data: productsData } = await supabase
         .from("products")
         .select("*")
         .eq("user_id", configData.user_id)
         .order("created_at", { ascending: false })
-      
       if (productsData) setProducts(productsData)
 
       setIsLoading(false)
@@ -135,7 +146,7 @@ export function useAgendamento(slug: string) {
     fetchInitialData()
   }, [supabase, slug])
 
-  // Buscar Agendamentos do dia selecionado
+  // Buscar Agendamentos do dia selecionado para verificar conflitos
   useEffect(() => {
     const fetchAppointments = async () => {
       if (!settings?.user_id) return
@@ -149,7 +160,7 @@ export function useAgendamento(slug: string) {
     fetchAppointments()
   }, [selectedDate, supabase, settings])
 
-  // Lógica de Horários Disponíveis
+  // 🔹 Lógica de Horários Inteligente (Avaliando Profissionais) 🔹
   const generateTimeSlots = () => {
     if (!settings) return []
     const slots = []
@@ -173,6 +184,12 @@ export function useAgendamento(slug: string) {
 
     return !appointments.some(appt => {
       if (appt.status === 'Cancelado') return false
+      
+      // Se o cliente escolheu um barbeiro específico, ignora a agenda dos outros barbeiros
+      if (selectedProfessional && appt.professional_id && appt.professional_id !== selectedProfessional.id) {
+        return false 
+      }
+      
       const apptSvc = services.find(s => s.title === appt.service)
       const apptDuration = apptSvc ? apptSvc.duration_minutes : 30
       const existingStart = timeToMinutes(appt.time)
@@ -181,57 +198,101 @@ export function useAgendamento(slug: string) {
     })
   }
 
-  // Ações
+  // 🔹 AÇÃO PRINCIPAL: CONFIRMAÇÃO DO AGENDAMENTO (O MOTOR CRM) 🔹
   const handleBooking = async () => {
     if (!clientName || !clientPhone) {
-      toast.error("Por favor, preencha seu nome e WhatsApp.")
+      toast.error("Por favor, preencha o seu nome e WhatsApp.")
       return
     }
     setIsSubmitting(true)
-    const { error } = await supabase.from("appointments").insert([{
-      user_id: settings.user_id,
-      client_name: clientName,
-      client_phone: clientPhone,
-      service: selectedService.title,
-      date: selectedDate,
-      time: selectedTime,
-      status: "Confirmado"
-    }])
-    setIsSubmitting(false)
-    if (error) {
-      toast.error("Erro ao agendar. Tente novamente.")
-    } else {
-      setStep(4) 
+
+    try {
+      // 1. O UPSERT NO CRM (Tabela clients)
+      // Procuramos se este número de telemóvel já existe na barbearia
+      const { data: existingClient } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('user_id', settings.user_id)
+        .eq('phone', clientPhone)
+        .single()
+
+      if (existingClient) {
+        // Cliente Antigo: Apenas atualizamos a última visita para sair do radar de "Cortes Vencidos"
+        await supabase.from('clients').update({ 
+          last_visit: selectedDate,
+          name: clientName 
+        }).eq('id', existingClient.id)
+      } else {
+        // Cliente Novo: Criamos o registo para o LTV começar a contar
+        await supabase.from('clients').insert([{
+          user_id: settings.user_id,
+          name: clientName,
+          phone: clientPhone,
+          last_visit: selectedDate,
+          total_spent: 0 
+        }])
+      }
+
+      // 2. REGISTAR O AGENDAMENTO (Com preço para o Financeiro)
+      const { error: apptError } = await supabase.from("appointments").insert([{
+        user_id: settings.user_id,
+        client_name: clientName,
+        client_phone: clientPhone,
+        service: selectedService.title,
+        professional_id: selectedProfessional?.id || null, // Atrela ao barbeiro escolhido
+        total_price: selectedService.price, // FUNDAMENTAL para fechar o caixa depois
+        date: selectedDate,
+        time: selectedTime,
+        status: "Confirmado",
+        payment_status: "PENDENTE" // Fica pendente até o dono dar baixa na máquina/dinheiro
+      }])
+
+      if (apptError) throw apptError
+
+      // Avança para o Bilhete de Embarque (Sucesso)
+      setStep(5) 
+    } catch (error) {
+      toast.error("Ocorreu um erro ao agendar. Tente novamente.")
+      console.error(error)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
+  // Disparo de WhatsApp Inteligente
   const openWhatsApp = () => {
     const dataFormatada = selectedDate.split('-').reverse().join('/')
-    let template = settings?.whatsapp_message || "Olá, agendei meu horário para {servico} no dia {data} às {hora}. Meu nome é {cliente}."
-    const textoFinal = template
+    let template = settings?.whatsapp_message || "Olá, agendei o meu horário para {servico} no dia {data} às {hora}. O meu nome é {cliente}."
+    
+    let textoFinal = template
       .replace(/{cliente}/g, clientName)
       .replace(/{servico}/g, selectedService?.title)
       .replace(/{data}/g, dataFormatada)
       .replace(/{hora}/g, selectedTime)
       .replace(/{barbearia}/g, settings?.business_name)
+
+    // Se houver um barbeiro escolhido, pode adicionar ao texto
+    if (selectedProfessional) {
+       textoFinal += ` com o profissional ${selectedProfessional.name}.`
+    }
+
     const phone = settings?.whatsapp_number || "5511999999999"
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(textoFinal)}`, '_blank')
   }
 
-  // Helpers de UI
   const brandColor = settings?.primary_color || "#09090b"
   const currentThemeId = (settings?.theme as keyof typeof themeStyles) || "liso"
   const theme = themeStyles[currentThemeId] || themeStyles.liso 
 
   return {
     state: {
-      step, isLoading, isSubmitting, notFound, settings, services, 
+      step, isLoading, isSubmitting, notFound, settings, services, professionals,
       photos, products, activeTab, activePhotoCategory, photoCategories, 
-      selectedService, selectedDate, selectedTime, clientName, clientPhone, 
+      selectedService, selectedProfessional, selectedDate, selectedTime, clientName, clientPhone, 
       today, timeSlots, brandColor, theme
     },
     actions: {
-      setStep, setActiveTab, setActivePhotoCategory, setSelectedService, 
+      setStep, setActiveTab, setActivePhotoCategory, setSelectedService, setSelectedProfessional,
       setSelectedDate, setSelectedTime, setClientName, setClientPhone, 
       isSlotAvailable, handleBooking, openWhatsApp
     }

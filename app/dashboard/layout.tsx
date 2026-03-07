@@ -15,7 +15,8 @@ import {
   X,
   Wallet,
   Users,
-  ImageIcon
+  ImageIcon,
+  PieChart // 🔹 Ícone adicionado aqui!
 } from "lucide-react"
 
 // Importando o nosso Cérebro
@@ -64,13 +65,14 @@ function DashboardContent({ children }: { children: React.ReactNode }) {
     return <div className="flex h-screen w-screen items-center justify-center bg-zinc-50 dark:bg-[#09090b]"><LayoutDashboard className="h-8 w-8 animate-pulse text-zinc-400" /></div>
   }
 
-  // 🔹 A REGRA DOS 6 BOTÕES MESTRES 🔹
+  // 🔹 A REGRA DOS BOTÕES MESTRES (Agora com Inteligência) 🔹
   const menuItems = [
     { name: "Visão Geral", icon: LayoutDashboard, href: "/dashboard" },
     { name: "Agenda", icon: Calendar, href: "/dashboard/agenda" },
     { name: "Financeiro", icon: Wallet, href: "/dashboard/financas" },
     { name: "Clientes", icon: Users, href: "/dashboard/clientes" },
     { name: "Vitrine", icon: ImageIcon, href: "/dashboard/portfolio" },
+    { name: "Inteligência", icon: PieChart, href: "/dashboard/relatorios" }, // 🔹 Nossa nova página aqui!
   ]
 
   return (
