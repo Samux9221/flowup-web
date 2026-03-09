@@ -49,7 +49,7 @@ export function useAgenda() {
   const [selectedDate, setSelectedDate] = useState(today)
   const [appointments, setAppointments] = useState<any[]>([])
   const [availableServices, setAvailableServices] = useState<any[]>([])
-  const [availableProducts, setAvailableProducts] = useState<any[]>([]) // 🔹 PRODUTOS AQUI
+  const [availableProducts, setAvailableProducts] = useState<any[]>([])
   
   const [professionals, setProfessionals] = useState<any[]>([])
   const [selectedProfessional, setSelectedProfessional] = useState<string>("")
@@ -80,7 +80,6 @@ export function useAgenda() {
       const { data: configData } = await supabase.from("business_settings").select("*").eq("user_id", userId).single()
       if (configData) setSettings(configData)
 
-      // 🔹 A MÁGICA DA SEPARAÇÃO ACONTECE AQUI
       const { data: servicesData } = await supabase.from("services").select("*").eq("user_id", userId).order("title")
       if (servicesData) {
         setAvailableServices(servicesData.filter((s: any) => s.type !== 'product'))
@@ -202,10 +201,19 @@ export function useAgenda() {
     }
 
     const descriptionText = checkoutAppt ? `Atendimento: ${checkoutAppt.client_name}` : "Atendimento"
+    
+    // 🔹 A MÁGICA DA ARQUITETURA ESTÁ AQUI: Integração direta e classificada no Caixa B2B
     await supabase.from("transactions").insert([{
-      user_id: userId, appointment_id: id, type: 'INCOME', amount: liquidTotal,
+      user_id: userId, 
+      appointment_id: id, 
+      type: 'INCOME', 
+      category: 'Serviços e Vendas', 
+      amount: liquidTotal,
       description: profName ? `${descriptionText} - ${profName}` : descriptionText,
-      payment_method: paymentMethod, status: 'PAGO', date: selectedDate
+      payment_method: paymentMethod, 
+      status: 'PAGO', 
+      date: selectedDate,
+      due_date: selectedDate 
     }])
 
     if (professionalId && commissionAmount > 0) {
@@ -271,7 +279,7 @@ export function useAgenda() {
   return {
     state: {
       userId, isLoading, appointments, selectedDate, timeSlots, timelineBlocks, 
-      availableServices, availableProducts, professionals, // 🔹 PRODUTOS EXPORTADOS AQUI
+      availableServices, availableProducts, professionals,
       selectedProfessional, isSheetOpen, clientName, service, selectedTime, 
       isSaving, config, ServiceIcon, t, checkoutAppt 
     },
