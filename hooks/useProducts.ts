@@ -11,6 +11,8 @@ export function useProducts(userId: string | null) {
 
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [availableServices, setAvailableServices] = useState<any[]>([])
+  const [availableProducts, setAvailableProducts] = useState<any[]>([]) // 🔹 ADICIONE ESTA LINHA
 
   useEffect(() => {
     if (!userId) {
